@@ -1,65 +1,100 @@
 httplog
 =======
 
-Small but powerful structured logging package for HTTP request logging in Go.
+This is a simple forked of [go-chi/httplog](https://github.com/go-chi/httplog) middleware, with additional support of dumping request and response body. This is mostly useful for auditing purpose.
 
-## Example
+## Differences
 
-(see [_example/](./_example/main.go))
+Changes made in this repo only takes effect in non-concise mode. Otherwise, the behavior would remain the same.
+* response body limit is increased from 512 to 128000 bytes
+* In non-concise mode
+  * instead of duplicating httpRequest log between the context and message, header and body is logged under  httpRequestExtra
+  * response body is always included in the log message (go-chi/httplog include response only when http code is 4xx)
 
-```go
+## Log Example
+
+```json
+{
+    "level": "info",
+    "service": "httplog-example",
+    "httpRequest": {
+        "proto": "HTTP/1.1",
+        "remoteIP": "[::1]:50389",
+        "requestID": "infekta.local/8Ecrdfj1sf-000007",
+        "requestMethod": "POST",
+        "requestPath": "/reflect",
+        "requestURL": "http://localhost:5555/reflect"
+    },
+    "httpRequestExtra": {
+        "body": "{\"title\": \"example\"}",
+        "header": {
+            "accept": "*/*",
+            "content-length": "20",
+            "content-type": "application/json",
+            "user-agent": "insomnia/2020.4.1"
+        }
+    },
+    "timestamp": "2021-02-19T23:38:24.840108+07:00",
+    "message": "Request: POST /reflect"
+}
+{
+    "level": "info",
+    "service": "httplog-example",
+    "httpRequest": {
+        "proto": "HTTP/1.1",
+        "remoteIP": "[::1]:50389",
+        "requestID": "infekta.local/8Ecrdfj1sf-000007",
+        "requestMethod": "POST",
+        "requestPath": "/reflect",
+        "requestURL": "http://localhost:5555/reflect"
+    },
+    "httpResponse": {
+        "body": "POST /reflect HTTP/1.1\r\nHost: localhost:5555\r\nAccept: */*\r\nContent-Length: 20\r\nContent-Type: application/json\r\nUser-Agent: insomnia/2020.4.1\r\n\r\n{\"title\": \"example\"}",
+        "bytes": 164,
+        "elapsed": 0.026024,
+        "status": 200
+    },
+    "timestamp": "2021-02-19T23:38:24.840224+07:00",
+    "message": "Response: 200 OK"
+}
+```
+
+## Usage Example
+
+Also available in [_example/](./_example/)
+
+```golang
 package main
 
 import (
   "net/http"
+  "net/http/httputil"
+
   "github.com/go-chi/chi"
-  "github.com/go-chi/chi/middleware"
-  "github.com/go-chi/httplog"
+
+  "github.com/manat/httplog"
 )
 
 func main() {
-  // Logger
-  logger := httplog.NewLogger("httplog-example", httplog.Options{
-    JSON: true,
-  })
+	logger := httplog.NewLogger("httplog-example", httplog.Options{
+		JSON: true,
+	})
 
-  // Service
-  r := chi.NewRouter()
-  r.Use(httplog.RequestLogger(logger))
-  r.Use(middleware.Heartbeat("/ping"))
+	// Service
+	r := chi.NewRouter()
+	r.Use(httplog.RequestLogger(logger))
 
-  r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-    w.Write([]byte("hello world"))
-  })
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello world"))
+	})
 
-  r.Get("/panic", func(w http.ResponseWriter, r *http.Request) {
-    panic("oh no")
-  })
+	r.Post("/reflect", func(w http.ResponseWriter, r *http.Request) {
+		dump, _ := httputil.DumpRequest(r, true)
+		w.Write(dump)
+	})
 
-  r.Get("/info", func(w http.ResponseWriter, r *http.Request) {
-    oplog := httplog.LogEntry(r.Context())
-    w.Header().Add("Content-Type", "text/plain")
-    oplog.Info().Msg("info here")
-    w.Write([]byte("info here"))
-  })
-
-  r.Get("/warn", func(w http.ResponseWriter, r *http.Request) {
-    oplog := httplog.LogEntry(r.Context())
-    oplog.Warn().Msg("warn here")
-    w.WriteHeader(400)
-    w.Write([]byte("warn here"))
-  })
-
-  r.Get("/err", func(w http.ResponseWriter, r *http.Request) {
-    oplog := httplog.LogEntry(r.Context())
-    oplog.Error().Msg("err here")
-    w.WriteHeader(500)
-    w.Write([]byte("err here"))
-  })
-
-  http.ListenAndServe(":5555", r)
+	http.ListenAndServe(":5555", r)
 }
-
 ```
 
 ## License

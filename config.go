@@ -11,11 +11,12 @@ import (
 )
 
 var DefaultOptions = Options{
-	LogLevel:    "info",
-	JSON:        false,
-	Concise:     false,
-	Tags:        nil,
-	SkipHeaders: nil,
+	LogLevel:      "info",
+	JSON:          false,
+	Concise:       false,
+	Tags:          nil,
+	SkipHeaders:   nil,
+	LimitBodySize: 128000,
 }
 
 type Options struct {
@@ -41,8 +42,11 @@ type Options struct {
 	// name like prod/stg/dev
 	Tags map[string]string
 
-	// SkipHeaders are additional headers which are redacted from the logs
+	// SkipHeaders are additional headers which are redacted from the logs.
 	SkipHeaders []string
+
+	// LimitBodySize indicates how large the response body will be logged.
+	LimitBodySize int
 }
 
 // Configure will set new global/default options for the httplog and behaviour

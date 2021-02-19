@@ -1,6 +1,7 @@
 package httplog
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -48,15 +49,13 @@ func Handler(logger zerolog.Logger) func(next http.Handler) http.Handler {
 			entry := f.NewLogEntry(r)
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			buf := newLimitBuffer(512)
+			buf := newLimitBuffer(DefaultOptions.LimitBodySize)
 			ww.Tee(buf)
 
 			t1 := time.Now()
 			defer func() {
-				var respBody []byte
-				if ww.Status() >= 400 {
-					respBody, _ = ioutil.ReadAll(buf)
-				}
+				respBody, _ := ioutil.ReadAll(buf)
+
 				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(t1), respBody)
 			}()
 
@@ -73,9 +72,9 @@ type requestLogger struct {
 func (l *requestLogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 	entry := &RequestLoggerEntry{}
 	msg := fmt.Sprintf("Request: %s %s", r.Method, r.URL.Path)
-	entry.Logger = l.Logger.With().Fields(requestLogFields(r, true)).Logger()
+	entry.Logger = l.Logger.With().Fields(requestLogFields(r)).Logger()
 	if !DefaultOptions.Concise {
-		entry.Logger.Info().Fields(requestLogFields(r, DefaultOptions.Concise)).Msgf(msg)
+		entry.Logger.Info().Fields(requestLogExtraFields(r)).Msgf(msg)
 	}
 	return entry
 }
@@ -98,12 +97,10 @@ func (l *RequestLoggerEntry) Write(status, bytes int, header http.Header, elapse
 	}
 
 	if !DefaultOptions.Concise {
-		// Include response header, as well for error status codes (>400) we include
-		// the response body so we may inspect the log message sent back to the client.
-		if status >= 400 {
-			body, _ := extra.([]byte)
-			responseLog["body"] = string(body)
-		}
+		// Include response header, as well as response body.
+		body, _ := extra.([]byte)
+		responseLog["body"] = string(body)
+
 		if len(header) > 0 {
 			responseLog["header"] = headerLogField(header)
 		}
@@ -132,7 +129,7 @@ func (l *RequestLoggerEntry) Panic(v interface{}, stack []byte) {
 	}
 }
 
-func requestLogFields(r *http.Request, concise bool) map[string]interface{} {
+func requestLogFields(r *http.Request) map[string]interface{} {
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
@@ -150,20 +147,24 @@ func requestLogFields(r *http.Request, concise bool) map[string]interface{} {
 		requestFields["requestID"] = reqID
 	}
 
-	if concise {
-		return map[string]interface{}{
-			"httpRequest": requestFields,
-		}
+	return map[string]interface{}{
+		"httpRequest": requestFields,
 	}
+}
 
-	requestFields["scheme"] = scheme
+func requestLogExtraFields(r *http.Request) map[string]interface{} {
+	requestFields := map[string]interface{}{}
 
 	if len(r.Header) > 0 {
 		requestFields["header"] = headerLogField(r.Header)
 	}
 
+	if r.Body != nil {
+		requestFields["body"] = string(requestBodyLogField(r))
+	}
+
 	return map[string]interface{}{
-		"httpRequest": requestFields,
+		"httpRequestExtra": requestFields,
 	}
 }
 
@@ -191,6 +192,13 @@ func headerLogField(header http.Header) map[string]string {
 		}
 	}
 	return headerField
+}
+
+func requestBodyLogField(r *http.Request) []byte {
+	requestBody, _ := ioutil.ReadAll(r.Body)
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(requestBody)) // Reset Body back
+
+	return requestBody
 }
 
 func statusLevel(status int) zerolog.Level {
