@@ -2,17 +2,19 @@ package main
 
 import (
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/go-chi/httplog"
+
+	"github.com/manat/httplog"
 )
 
 func main() {
 	// Logger
 	logger := httplog.NewLogger("httplog-example", httplog.Options{
-		// JSON: true,
-		Concise: true,
+		JSON: true,
+		// Concise: true,
 		// Tags: map[string]string{
 		// 	"version": "v1.0-81aa4244d9fc8076a",
 		// 	"env":     "dev",
@@ -26,6 +28,11 @@ func main() {
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello world"))
+	})
+
+	r.Post("/reflect", func(w http.ResponseWriter, r *http.Request) {
+		dump, _ := httputil.DumpRequest(r, true)
+		w.Write(dump)
 	})
 
 	r.Get("/panic", func(w http.ResponseWriter, r *http.Request) {

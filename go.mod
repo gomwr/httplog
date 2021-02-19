@@ -1,8 +1,8 @@
-module github.com/go-chi/httplog
+module github.com/manat/httplog
 
-go 1.14
+go 1.15
 
 require (
-	github.com/go-chi/chi v1.5.1
-	github.com/rs/zerolog v1.18.1-0.20200514152719-663cbb4c8469
+	github.com/go-chi/chi v1.5.2
+	github.com/rs/zerolog v1.20.0
 )
