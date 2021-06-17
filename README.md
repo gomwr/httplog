@@ -29,7 +29,7 @@ Log output.
     "httpRequest": {
         "proto": "HTTP/1.1",
         "remoteIP": "[::1]:50389",
-        "requestID": "infekta.local/8Ecrdfj1sf-000007",
+        "requestID": "machine.local/8Ecrdfj1sf-000007",
         "requestMethod": "POST",
         "requestPath": "/reflect",
         "requestURL": "http://localhost:5555/reflect"
@@ -52,7 +52,7 @@ Log output.
     "httpRequest": {
         "proto": "HTTP/1.1",
         "remoteIP": "[::1]:50389",
-        "requestID": "infekta.local/8Ecrdfj1sf-000007",
+        "requestID": "machine.local/8Ecrdfj1sf-000007",
         "requestMethod": "POST",
         "requestPath": "/reflect",
         "requestURL": "http://localhost:5555/reflect"
@@ -79,7 +79,8 @@ import (
   "net/http"
   "net/http/httputil"
 
-  "github.com/go-chi/chi"
+  "github.com/go-chi/chi/v5"
+  "github.com/go-chi/chi/v5/middleware"
 
   "github.com/manat/httplog"
 )
