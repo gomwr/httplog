@@ -56,6 +56,10 @@ func Configure(opts Options) {
 		opts.LogLevel = "info"
 	}
 
+	if opts.LimitBodySize == 0 {
+		opts.LimitBodySize = DefaultOptions.LimitBodySize
+	}
+
 	// Pre-downcase all SkipHeaders
 	for i, header := range opts.SkipHeaders {
 		opts.SkipHeaders[i] = strings.ToLower(header)
