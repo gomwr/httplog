@@ -3,6 +3,7 @@ package httplog
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -99,7 +100,16 @@ func (l *RequestLoggerEntry) Write(status, bytes int, header http.Header, elapse
 	if !DefaultOptions.Concise {
 		// Include response header, as well as response body.
 		body, _ := extra.([]byte)
-		responseLog["body"] = string(body)
+		bodyStr := string(body)
+		responseLog["body"] = bodyStr
+
+		if binary.Size(body) == DefaultOptions.LimitBodySize {
+			var b strings.Builder
+			b.Grow(DefaultOptions.LimitBodySize + 8)
+			b.WriteString(bodyStr)
+			b.WriteString("   [...]")
+			responseLog["body"] = b.String()
+		}
 
 		if len(header) > 0 {
 			responseLog["header"] = headerLogField(header)
