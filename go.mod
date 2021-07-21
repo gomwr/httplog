@@ -1,4 +1,4 @@
-module github.com/manat/httplog
+module github.com/gomwr/httplog
 
 go 1.15
 
